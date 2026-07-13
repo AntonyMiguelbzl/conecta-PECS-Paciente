@@ -1,0 +1,8 @@
+{
+  "name": "Conecta PECS",
+  "description": "Prancha de comunicação alternativa digital (PECS) com feedback por voz, categorias dinâmicas e customização de cartões.",
+  "requestFramePermissions": [
+    "microphone"
+  ],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
