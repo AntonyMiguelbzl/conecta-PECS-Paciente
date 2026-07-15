@@ -6,7 +6,8 @@ import LoginScreen from './components/LoginScreen';
 import PecsBoard from './components/PecsBoard';
 
 import { initializeApp } from 'firebase/app';
-import { getFirestore, collection, query, where, getDocs } from 'firebase/firestore'; 
+// IMPORT ATUALIZADO: Adicionados onSnapshot e doc aqui
+import { getFirestore, collection, query, where, getDocs, onSnapshot, doc } from 'firebase/firestore'; 
 
 const firebaseConfig = {
   apiKey: "AIzaSyDYQEoW4OuFLeXfQwb1mKxJuWtuuHdqZYM",
@@ -74,6 +75,7 @@ export default function App() {
     }
   };
 
+  // Efeito original de carregamento
   useEffect(() => {
     const savedConfig = localStorage.getItem('paciente_conectado');
     if (savedConfig) {
@@ -87,6 +89,24 @@ export default function App() {
       }
     }
   }, []);
+
+  // NOVO EFEITO: Monitor de exclusão em tempo real
+  useEffect(() => {
+    if (!patientConfig?.id) return;
+
+    // Monitora o documento do paciente
+    const docRef = doc(db, 'pacientes', patientConfig.id);
+    const unsubscribe = onSnapshot(docRef, (docSnapshot) => {
+      // Se o documento sumir do banco, desloga imediatamente
+      if (!docSnapshot.exists()) {
+        alert("Sua conta foi removida pelo terapeuta. Você será desconectado.");
+        localStorage.removeItem('paciente_conectado');
+        window.location.reload(); 
+      }
+    });
+
+    return () => unsubscribe();
+  }, [patientConfig]);
 
   const handleLoginSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -159,7 +179,6 @@ export default function App() {
             spokenHistory={spokenHistory}
             setSpokenHistory={setSpokenHistory}
             activeRole="student"
-            // Aplicado a validação segura de controle parental ao sair/reconfigurar
             onOpenPanel={() => { 
               if (verificarAcessoResponsavel()) {
                 localStorage.removeItem('paciente_conectado');
