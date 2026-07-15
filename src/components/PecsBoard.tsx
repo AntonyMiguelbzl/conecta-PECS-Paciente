@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import * as Lucide from 'lucide-react';
-import { collection, query, where, onSnapshot } from "firebase/firestore";
+import { collection, query, where, onSnapshot, updateDoc, doc } from "firebase/firestore";
 import { db } from "../firebaseConfig";
 import { PecsCardType } from '../types';
 import SentenceBar from './SentenceBar';
@@ -30,6 +30,26 @@ export default function PecsBoard({
   const [customCards, setCustomCards] = useState<PecsCardType[]>([]);
 
   const currentCategory = historyStack[historyStack.length - 1] || 'home';
+
+  // Sincronização automática com o Firebase para o Monitoramento
+  useEffect(() => {
+    const syncSentence = async () => {
+      const savedConfig = localStorage.getItem('paciente_conectado');
+      const alunoData = savedConfig ? JSON.parse(savedConfig) : null;
+      
+      if (alunoData && alunoData.id) {
+        try {
+          const pacienteRef = doc(db, "pacientes", alunoData.id);
+          await updateDoc(pacienteRef, {
+            currentSentence: sentence
+          });
+        } catch (error) {
+          console.error("Erro ao sincronizar com monitoramento:", error);
+        }
+      }
+    };
+    syncSentence();
+  }, [sentence]);
 
   const categorySentenceHelpers: Record<string, { label: string; voiceText: string; icon: string; color: string; bgColor: string; borderColor: string }> = {
     comer: { label: 'eu quero comer', voiceText: 'eu quero comer', icon: 'utensils', color: 'text-amber-600', bgColor: 'bg-amber-50', borderColor: 'border-amber-200' },
@@ -77,18 +97,32 @@ export default function PecsBoard({
     setHistoryStack((prev) => prev[prev.length - 1] === target ? prev : [...prev, target]);
   };
 
-  const handleCardClick = (card: PecsCardType) => {
+const handleCardClick = (card: PecsCardType) => {
     if (card.type === 'category') {
       if (card.target && categorySentenceHelpers[card.target]) {
         const helper = categorySentenceHelpers[card.target];
-        setSentence((prev) => [...prev, { id: `helper-${card.target}`, label: helper.label, icon: helper.icon, type: 'item', color: helper.color, bgColor: helper.bgColor, borderColor: helper.borderColor }]);
+        setSentence((prev) => [...prev, { 
+          id: `helper-${card.target}`, 
+          label: helper.label, 
+          icon: helper.icon, 
+          type: 'item', 
+          color: helper.color, 
+          bgColor: helper.bgColor, 
+          borderColor: helper.borderColor 
+        }]);
         speakText(helper.voiceText);
       }
       if (card.target) setHistoryStack((prev) => [...prev, card.target!]);
     } else {
-      setSentence((prev) => [...prev, card]);
-      speakText(card.label);
-    }
+    // AQUI: Forçamos as cores do card para dentro do objeto que vai para o Firebase
+    setSentence((prev) => [...prev, {
+      ...card,
+      color: card.color || 'text-slate-700',
+      bgColor: card.bgColor || 'bg-white',
+      borderColor: card.borderColor || 'border-slate-200'
+    }]);
+    speakText(card.label);
+  }
   };
 
   const sidebarItems = [
