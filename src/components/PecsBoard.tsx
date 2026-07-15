@@ -29,12 +29,24 @@ export default function PecsBoard({
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [customCards, setCustomCards] = useState<PecsCardType[]>([]);
 
-  // Referência central para evitar duplo clique em qualquer ação (cooldown geral do app)
   const ultimoCliqueRef = useRef<number>(0);
+  const boasVindasFaladas = useRef<boolean>(false);
 
   const currentCategory = historyStack[historyStack.length - 1] || 'home';
 
-  // Sincronização automática com o Firebase para o Monitoramento
+  useEffect(() => {
+    const nomeParaBoasVindas = profile?.name || username;
+
+    if (nomeParaBoasVindas && !boasVindasFaladas.current) {
+      const timer = setTimeout(() => {
+        speakText(`Bem-vindo, ${nomeParaBoasVindas}!`);
+        boasVindasFaladas.current = true;
+      }, 800);
+
+      return () => clearTimeout(timer);
+    }
+  }, [profile?.name, username]);
+
   useEffect(() => {
     const syncSentence = async () => {
       const savedConfig = localStorage.getItem('paciente_conectado');
@@ -89,18 +101,15 @@ export default function PecsBoard({
     }
   }, []);
 
-  // Auxiliar para validar cliques rápidos
   const verificarBloqueioSpam = (tempoCooldown = 350): boolean => {
     const agora = Date.now();
     if (agora - ultimoCliqueRef.current < tempoCooldown) {
-      console.log("Ação rápida demais bloqueada para evitar bugs!");
-      return true; // Está bloqueado
+      return true;
     }
     ultimoCliqueRef.current = agora;
-    return false; // Liberado
+    return false;
   };
 
-  // 1. Clique seguro na Barra Lateral
   const handleSidebarClick = (target: string) => {
     if (verificarBloqueioSpam(400)) return;
 
@@ -114,7 +123,6 @@ export default function PecsBoard({
     setHistoryStack((prev) => prev[prev.length - 1] === target ? prev : [...prev, target]);
   };
 
-  // 2. Clique seguro nos Cartões
   const handleCardClick = (card: PecsCardType) => {
     if (verificarBloqueioSpam(400)) return;
 
@@ -144,37 +152,31 @@ export default function PecsBoard({
     }
   };
 
-  // 3. Remoção segura de cartão na barra (impede bugs com as animações de saída)
   const handleRemoveIndex = (idx: number) => {
     if (verificarBloqueioSpam(350)) return;
     setSentence((prev) => prev.filter((_, i) => i !== idx));
   };
 
-  // 4. Limpar barra com segurança
   const handleClear = () => {
     if (verificarBloqueioSpam(400)) return;
     setSentence([]);
   };
 
-  // 5. Apagar o último elemento com segurança
   const handleBackspace = () => {
     if (verificarBloqueioSpam(350)) return;
     setSentence((prev) => prev.slice(0, -1));
   };
 
-  // 6. Navegação Home segura
   const handleNavHome = () => {
     if (verificarBloqueioSpam(400)) return;
     setHistoryStack(['home']);
   };
 
-  // 7. Navegação Back segura
   const handleNavBack = () => {
     if (verificarBloqueioSpam(400)) return;
     setHistoryStack((prev) => prev.length > 1 ? prev.slice(0, -1) : prev);
   };
 
-  // 8. Execução da fala de áudio (calcula o tempo de forma inteligente para travar o botão)
   const handleSpeakSentence = () => {
     if (sentence.length === 0 || isSpeaking) return;
 
@@ -182,7 +184,6 @@ export default function PecsBoard({
     const textoCompleto = sentence.map(s => s.label).join(' ');
     speakText(textoCompleto);
 
-    // Duração estimada para manter o botão como "falando" (bloqueando duplo clique de áudio)
     const tempoEstimadoAudio = Math.max(1200, (textoCompleto.length * 85) + 600);
     
     setTimeout(() => {
@@ -190,7 +191,6 @@ export default function PecsBoard({
     }, tempoEstimadoAudio);
   };
 
-  // 9. Barreira Parental (Parental Gate) para acessar as configurações do app
   const handleOpenPanelSecure = () => {
     const num1 = Math.floor(Math.random() * 9) + 1;
     const num2 = Math.floor(Math.random() * 9) + 1;
@@ -218,7 +218,7 @@ export default function PecsBoard({
   ];
 
   return (
-    <motion.div className="flex-1 flex flex-col w-full h-screen mx-auto bg-white shadow-2xl relative overflow-hidden">
+    <motion.div className="flex-1 flex flex-col w-full h-[100dvh] mx-auto bg-white shadow-2xl relative overflow-hidden">
       <SentenceBar
         sentence={sentence}
         onRemoveIndex={handleRemoveIndex}
@@ -232,22 +232,25 @@ export default function PecsBoard({
       />
 
       <div className="flex-1 flex overflow-hidden">
-        <aside className="w-16 sm:w-24 md:w-28 bg-slate-50 border-r-4 border-slate-200 flex flex-col items-center py-4 sm:py-6 gap-3 sm:gap-5 overflow-y-auto shrink-0">
+        {/* Sidebar responsiva apenas para celular horizontal */}
+        <aside className="w-16 sm:w-24 md:w-28 bg-slate-50 border-r-4 border-slate-200 flex flex-col items-center py-4 sm:py-6 gap-3 sm:gap-5 [@media(max-height:620px)_and_(orientation:landscape)]:py-1.5 [@media(max-height:620px)_and_(orientation:landscape)]:gap-1.5 overflow-y-auto shrink-0">
           {sidebarItems.map((item) => {
             const isActive = currentCategory === item.target;
             return (
               <button key={item.id} onClick={() => handleSidebarClick(item.target)} className="flex flex-col items-center justify-center gap-1 group w-full px-1">
-                <div className={`w-12 h-12 sm:w-14 sm:h-14 rounded-2xl flex items-center justify-center border-2 ${isActive ? item.activeColor : item.inactiveColor}`}>
-                  {React.cloneElement(item.icon as React.ReactElement<any>, { className: "w-6 h-6 sm:w-7 sm:h-7" })}
+                <div className={`w-12 h-12 sm:w-14 sm:h-14 [@media(max-height:620px)_and_(orientation:landscape)]:w-10 [@media(max-height:620px)_and_(orientation:landscape)]:h-10 rounded-2xl [@media(max-height:620px)_and_(orientation:landscape)]:rounded-xl flex items-center justify-center border-2 transition-all ${isActive ? item.activeColor : item.inactiveColor}`}>
+                  {React.cloneElement(item.icon as React.ReactElement<any>, { className: "w-6 h-6 sm:w-7 sm:h-7 [@media(max-height:620px)_and_(orientation:landscape)]:w-5 [@media(max-height:620px)_and_(orientation:landscape)]:h-5" })}
                 </div>
-                <span className="text-[9px] sm:text-[10px] font-extrabold uppercase text-center mt-0.5 truncate w-full">{item.label}</span>
+                <span className="text-[9px] sm:text-[10px] [@media(max-height:620px)_and_(orientation:landscape)]:text-[8px] font-extrabold uppercase text-center mt-0.5 truncate w-full">{item.label}</span>
               </button>
             );
           })}
         </aside>
 
-        <div className="flex-1 p-3 sm:p-6 overflow-y-auto bg-slate-50">
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 sm:gap-4 pb-10">
+        {/* Área de conteúdo dos cartões */}
+        <div className="flex-1 p-3 sm:p-6 [@media(max-height:620px)_and_(orientation:landscape)]:p-2.5 overflow-y-auto bg-slate-50">
+          {/* Grade otimizada: No desktop ela escala até 8 ou 10 colunas, de acordo com o tamanho da tela do PC */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 2xl:grid-cols-10 [@media(max-height:620px)_and_(orientation:landscape)]:grid-cols-4 gap-3 sm:gap-4 [@media(max-height:620px)_and_(orientation:landscape)]:gap-2 pb-10">
             {[...cards, ...customCards]
               .filter(card => {
                 if (currentCategory === 'home') {
@@ -262,22 +265,23 @@ export default function PecsBoard({
         </div>
       </div>
 
-      <footer className="shrink-0 px-3 sm:px-6 py-3 border-t border-slate-200 flex items-center justify-between bg-slate-50 h-14">
+      {/* Footer responsivo apenas para celular horizontal */}
+      <footer className="shrink-0 px-3 sm:px-6 py-3 border-t border-slate-200 flex items-center justify-between bg-slate-50 h-14 [@media(max-height:620px)_and_(orientation:landscape)]:h-11 [@media(max-height:620px)_and_(orientation:landscape)]:py-1">
         <div className="flex items-center gap-2 truncate">
           <span className={`w-3 h-3 rounded-full shadow-sm animate-pulse shrink-0 ${
             activeRole === 'therapist' ? 'bg-purple-500' : 
             activeRole === 'parent' ? 'bg-indigo-500' : 'bg-emerald-500'
           }`} />
-          <span className="text-[9px] sm:text-[10px] font-extrabold uppercase tracking-wider text-slate-600 truncate">
+          <span className="text-[9px] sm:text-[10px] [@media(max-height:620px)_and_(orientation:landscape)]:text-[8px] font-extrabold uppercase tracking-wider text-slate-600 truncate">
             {activeRole === 'therapist' ? `Terapeuta: ${username}` : 
              activeRole === 'parent' ? `Responsável: ${username}` : `Estudante: ${username}`}
           </span>
         </div>
         <button 
           onClick={handleOpenPanelSecure} 
-          className="flex items-center gap-1.5 text-[9px] sm:text-[11px] font-extrabold px-2 sm:px-3 py-1.5 bg-white hover:bg-amber-50 text-amber-700 border-2 border-amber-200 hover:border-amber-300 rounded-xl transition-all shadow-sm active:scale-95 shrink-0"
+          className="flex items-center gap-1.5 text-[9px] sm:text-[11px] [@media(max-height:620px)_and_(orientation:landscape)]:text-[9px] font-extrabold px-2 sm:px-3 py-1.5 [@media(max-height:620px)_and_(orientation:landscape)]:py-1 bg-white hover:bg-amber-50 text-amber-700 border-2 border-amber-200 hover:border-amber-300 rounded-xl transition-all shadow-sm active:scale-95 shrink-0"
         >
-          <Lucide.Settings className="w-3 h-3 sm:w-4 sm:h-4" />
+          <Lucide.Settings className="w-3.5 h-3.5 sm:w-4 sm:h-4 [@media(max-height:620px)_and_(orientation:landscape)]:w-3.5 [@media(max-height:620px)_and_(orientation:landscape)]:h-3.5" />
           <span className="hidden sm:inline">CONFIGURAÇÕES</span>
           <span className="inline sm:hidden">CONFIG</span>
         </button>
