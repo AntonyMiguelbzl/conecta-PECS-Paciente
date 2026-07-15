@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import * as Lucide from 'lucide-react';
 import { collection, query, where, onSnapshot, updateDoc, doc } from "firebase/firestore";
@@ -28,6 +28,9 @@ export default function PecsBoard({
   const [historyStack, setHistoryStack] = useState<string[]>(['home']);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [customCards, setCustomCards] = useState<PecsCardType[]>([]);
+
+  // Referência central para evitar duplo clique em qualquer ação (cooldown geral do app)
+  const ultimoCliqueRef = useRef<number>(0);
 
   const currentCategory = historyStack[historyStack.length - 1] || 'home';
 
@@ -86,7 +89,21 @@ export default function PecsBoard({
     }
   }, []);
 
+  // Auxiliar para validar cliques rápidos
+  const verificarBloqueioSpam = (tempoCooldown = 350): boolean => {
+    const agora = Date.now();
+    if (agora - ultimoCliqueRef.current < tempoCooldown) {
+      console.log("Ação rápida demais bloqueada para evitar bugs!");
+      return true; // Está bloqueado
+    }
+    ultimoCliqueRef.current = agora;
+    return false; // Liberado
+  };
+
+  // 1. Clique seguro na Barra Lateral
   const handleSidebarClick = (target: string) => {
+    if (verificarBloqueioSpam(400)) return;
+
     if (target === 'home') { setHistoryStack(['home']); return; }
     if (categorySentenceHelpers[target]) {
       const helper = categorySentenceHelpers[target];
@@ -97,7 +114,10 @@ export default function PecsBoard({
     setHistoryStack((prev) => prev[prev.length - 1] === target ? prev : [...prev, target]);
   };
 
-const handleCardClick = (card: PecsCardType) => {
+  // 2. Clique seguro nos Cartões
+  const handleCardClick = (card: PecsCardType) => {
+    if (verificarBloqueioSpam(400)) return;
+
     if (card.type === 'category') {
       if (card.target && categorySentenceHelpers[card.target]) {
         const helper = categorySentenceHelpers[card.target];
@@ -114,15 +134,77 @@ const handleCardClick = (card: PecsCardType) => {
       }
       if (card.target) setHistoryStack((prev) => [...prev, card.target!]);
     } else {
-    // AQUI: Forçamos as cores do card para dentro do objeto que vai para o Firebase
-    setSentence((prev) => [...prev, {
-      ...card,
-      color: card.color || 'text-slate-700',
-      bgColor: card.bgColor || 'bg-white',
-      borderColor: card.borderColor || 'border-slate-200'
-    }]);
-    speakText(card.label);
-  }
+      setSentence((prev) => [...prev, {
+        ...card,
+        color: card.color || 'text-slate-700',
+        bgColor: card.bgColor || 'bg-white',
+        borderColor: card.borderColor || 'border-slate-200'
+      }]);
+      speakText(card.label);
+    }
+  };
+
+  // 3. Remoção segura de cartão na barra (impede bugs com as animações de saída)
+  const handleRemoveIndex = (idx: number) => {
+    if (verificarBloqueioSpam(350)) return;
+    setSentence((prev) => prev.filter((_, i) => i !== idx));
+  };
+
+  // 4. Limpar barra com segurança
+  const handleClear = () => {
+    if (verificarBloqueioSpam(400)) return;
+    setSentence([]);
+  };
+
+  // 5. Apagar o último elemento com segurança
+  const handleBackspace = () => {
+    if (verificarBloqueioSpam(350)) return;
+    setSentence((prev) => prev.slice(0, -1));
+  };
+
+  // 6. Navegação Home segura
+  const handleNavHome = () => {
+    if (verificarBloqueioSpam(400)) return;
+    setHistoryStack(['home']);
+  };
+
+  // 7. Navegação Back segura
+  const handleNavBack = () => {
+    if (verificarBloqueioSpam(400)) return;
+    setHistoryStack((prev) => prev.length > 1 ? prev.slice(0, -1) : prev);
+  };
+
+  // 8. Execução da fala de áudio (calcula o tempo de forma inteligente para travar o botão)
+  const handleSpeakSentence = () => {
+    if (sentence.length === 0 || isSpeaking) return;
+
+    setIsSpeaking(true);
+    const textoCompleto = sentence.map(s => s.label).join(' ');
+    speakText(textoCompleto);
+
+    // Duração estimada para manter o botão como "falando" (bloqueando duplo clique de áudio)
+    const tempoEstimadoAudio = Math.max(1200, (textoCompleto.length * 85) + 600);
+    
+    setTimeout(() => {
+      setIsSpeaking(false);
+    }, tempoEstimadoAudio);
+  };
+
+  // 9. Barreira Parental (Parental Gate) para acessar as configurações do app
+  const handleOpenPanelSecure = () => {
+    const num1 = Math.floor(Math.random() * 9) + 1;
+    const num2 = Math.floor(Math.random() * 9) + 1;
+    const resultadoCorreto = num1 + num2;
+
+    const resposta = prompt(
+      `ÁREA RESTRITA PARA RESPONSÁVEIS\n\nPara acessar as configurações, resolva a conta abaixo:\nQuanto é ${num1} + ${num2}?`
+    );
+
+    if (parseInt(resposta || '') === resultadoCorreto) {
+      onOpenPanel();
+    } else {
+      alert("Acesso recusado. Apenas pais, terapeutas ou educadores podem alterar as configurações.");
+    }
   };
 
   const sidebarItems = [
@@ -136,36 +218,36 @@ const handleCardClick = (card: PecsCardType) => {
   ];
 
   return (
-    <motion.div className="flex-1 flex flex-col max-w-7xl w-full mx-auto bg-white shadow-2xl relative overflow-hidden h-full">
+    <motion.div className="flex-1 flex flex-col w-full h-screen mx-auto bg-white shadow-2xl relative overflow-hidden">
       <SentenceBar
         sentence={sentence}
-        onRemoveIndex={(idx: number) => setSentence(prev => prev.filter((_, i) => i !== idx))}
-        onClear={() => setSentence([])}
-        onBackspace={() => setSentence(prev => prev.slice(0, -1))}
-        onSpeak={() => speakText(sentence.map(s => s.label).join(' '))}
-        onNavHome={() => setHistoryStack(['home'])}
-        onNavBack={() => setHistoryStack(prev => prev.length > 1 ? prev.slice(0, -1) : prev)}
+        onRemoveIndex={handleRemoveIndex}
+        onClear={handleClear}
+        onBackspace={handleBackspace}
+        onSpeak={handleSpeakSentence}
+        onNavHome={handleNavHome}
+        onNavBack={handleNavBack}
         isSpeaking={isSpeaking}
         historyLength={historyStack.length}
       />
 
       <div className="flex-1 flex overflow-hidden">
-        <aside className="w-24 sm:w-28 bg-slate-50 border-r-4 border-slate-200 flex flex-col items-center py-6 gap-5 overflow-y-auto">
+        <aside className="w-16 sm:w-24 md:w-28 bg-slate-50 border-r-4 border-slate-200 flex flex-col items-center py-4 sm:py-6 gap-3 sm:gap-5 overflow-y-auto shrink-0">
           {sidebarItems.map((item) => {
             const isActive = currentCategory === item.target;
             return (
-              <button key={item.id} onClick={() => handleSidebarClick(item.target)} className="flex flex-col items-center justify-center gap-1 group w-16 sm:w-20">
-                <div className={`w-14 h-14 rounded-2xl flex items-center justify-center border-2 ${isActive ? item.activeColor : item.inactiveColor}`}>
-                  {item.icon}
+              <button key={item.id} onClick={() => handleSidebarClick(item.target)} className="flex flex-col items-center justify-center gap-1 group w-full px-1">
+                <div className={`w-12 h-12 sm:w-14 sm:h-14 rounded-2xl flex items-center justify-center border-2 ${isActive ? item.activeColor : item.inactiveColor}`}>
+                  {React.cloneElement(item.icon as React.ReactElement<any>, { className: "w-6 h-6 sm:w-7 sm:h-7" })}
                 </div>
-                <span className="text-[10px] font-extrabold uppercase text-center mt-0.5">{item.label}</span>
+                <span className="text-[9px] sm:text-[10px] font-extrabold uppercase text-center mt-0.5 truncate w-full">{item.label}</span>
               </button>
             );
           })}
         </aside>
 
-        <div className="flex-1 p-6 overflow-y-auto bg-slate-50">
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+        <div className="flex-1 p-3 sm:p-6 overflow-y-auto bg-slate-50">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 sm:gap-4 pb-10">
             {[...cards, ...customCards]
               .filter(card => {
                 if (currentCategory === 'home') {
@@ -180,23 +262,24 @@ const handleCardClick = (card: PecsCardType) => {
         </div>
       </div>
 
-      <footer className="px-6 py-3 border-t border-slate-200 flex items-center justify-between bg-slate-50 h-14">
-        <div className="flex items-center gap-2">
-          <span className={`w-3 h-3 rounded-full shadow-sm animate-pulse ${
+      <footer className="shrink-0 px-3 sm:px-6 py-3 border-t border-slate-200 flex items-center justify-between bg-slate-50 h-14">
+        <div className="flex items-center gap-2 truncate">
+          <span className={`w-3 h-3 rounded-full shadow-sm animate-pulse shrink-0 ${
             activeRole === 'therapist' ? 'bg-purple-500' : 
             activeRole === 'parent' ? 'bg-indigo-500' : 'bg-emerald-500'
           }`} />
-          <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-600">
+          <span className="text-[9px] sm:text-[10px] font-extrabold uppercase tracking-wider text-slate-600 truncate">
             {activeRole === 'therapist' ? `Terapeuta: ${username}` : 
              activeRole === 'parent' ? `Responsável: ${username}` : `Estudante: ${username}`}
           </span>
         </div>
         <button 
-          onClick={onOpenPanel} 
-          className="flex items-center gap-1.5 text-[11px] font-extrabold px-3 py-1.5 bg-white hover:bg-amber-50 text-amber-700 border-2 border-amber-200 hover:border-amber-300 rounded-xl transition-all shadow-sm active:scale-95"
+          onClick={handleOpenPanelSecure} 
+          className="flex items-center gap-1.5 text-[9px] sm:text-[11px] font-extrabold px-2 sm:px-3 py-1.5 bg-white hover:bg-amber-50 text-amber-700 border-2 border-amber-200 hover:border-amber-300 rounded-xl transition-all shadow-sm active:scale-95 shrink-0"
         >
-          <Lucide.Settings size={13} />
-          CONFIGURAÇÕES
+          <Lucide.Settings className="w-3 h-3 sm:w-4 sm:h-4" />
+          <span className="hidden sm:inline">CONFIGURAÇÕES</span>
+          <span className="inline sm:hidden">CONFIG</span>
         </button>
       </footer>
     </motion.div>

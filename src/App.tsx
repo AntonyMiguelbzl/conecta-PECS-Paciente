@@ -32,7 +32,24 @@ export default function App() {
   const [loginError, setLoginError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
-  // Função corrigida para buscar na coleção exata da sua imagem
+  // Função do Parental Gate (Barreira para Responsáveis)
+  const verificarAcessoResponsavel = (): boolean => {
+    const num1 = Math.floor(Math.random() * 9) + 1;
+    const num2 = Math.floor(Math.random() * 9) + 1;
+    const resultadoCorreto = num1 + num2;
+
+    const resposta = prompt(
+      `ÁREA RESTRITA PARA RESPONSÁVEIS\n\nPara prosseguir, resolva a conta:\nQuanto é ${num1} + ${num2}?`
+    );
+
+    if (parseInt(resposta || '') === resultadoCorreto) {
+      return true;
+    }
+
+    alert("Acesso negado. Apenas pais ou terapeutas podem acessar as configurações.");
+    return false;
+  };
+
   const carregarCartoesDoBanco = async (pacienteId: string) => {
     console.log("Buscando cartões para o ID:", pacienteId);
     try {
@@ -46,7 +63,6 @@ export default function App() {
         cartoesDoFirebase.push({ 
           id: doc.id, 
           label: data.label || 'Sem nome',
-          // Mapeie os outros campos conforme o seu tipo PecsCardType
           ...data 
         } as PecsCardType);
       });
@@ -104,7 +120,6 @@ export default function App() {
       carregarCartoesDoBanco(docPaciente.id); 
       setTela('pecs');
       
-      
     } catch (err) {
       console.error("Erro no login:", err);
       setLoginError('Erro ao conectar ao banco de dados.');
@@ -121,7 +136,7 @@ export default function App() {
   };
 
   return (
-    <div id="pece-app-container" className="flex flex-col h-screen w-screen bg-slate-900 overflow-hidden font-sans select-none antialiased">
+    <div id="pece-app-container" className="flex flex-col h-[100dvh] w-full bg-slate-900 overflow-hidden font-sans select-none antialiased">
       <AnimatePresence mode="wait">
         {tela === 'login' ? (
           <LoginScreen
@@ -144,7 +159,13 @@ export default function App() {
             spokenHistory={spokenHistory}
             setSpokenHistory={setSpokenHistory}
             activeRole="student"
-            onOpenPanel={() => { localStorage.removeItem('paciente_conectado'); window.location.reload(); }}
+            // Aplicado a validação segura de controle parental ao sair/reconfigurar
+            onOpenPanel={() => { 
+              if (verificarAcessoResponsavel()) {
+                localStorage.removeItem('paciente_conectado');
+                window.location.reload(); 
+              }
+            }}
             username={patientConfig?.name || ''}
           />
         )}
