@@ -1,7 +1,7 @@
 import { initializeApp } from "firebase/app";
 import { getAuth } from "firebase/auth";
-import { getFirestore } from "firebase/firestore"; 
-
+// Importamos as funções necessárias para configurar a persistência e o protocolo
+import { initializeFirestore, CACHE_SIZE_UNLIMITED } from "firebase/firestore"; 
 
 const firebaseConfig = {
   apiKey: "AIzaSyDYQEoW4OuFLeXfQwb1mKxJuWtuuHdqZYM",
@@ -13,8 +13,13 @@ const firebaseConfig = {
   measurementId: "G-YKHCTWMRVL"
 };
 
-// Initialize Firebase
 const app = initializeApp(firebaseConfig);
 
 export const auth = getAuth(app);
-export const db = getFirestore(app);
+
+// A MUDANÇA: Inicializamos o Firestore com configurações de estabilidade para iOS
+export const db = initializeFirestore(app, {
+  cacheSizeBytes: CACHE_SIZE_UNLIMITED,
+  // Esta configuração reduz drasticamente os erros de CORS/Access Control no iOS
+  experimentalForceLongPolling: true 
+});

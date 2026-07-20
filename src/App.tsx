@@ -6,7 +6,6 @@ import LoginScreen from './components/LoginScreen';
 import PecsBoard from './components/PecsBoard';
 
 import { initializeApp } from 'firebase/app';
-// IMPORT ATUALIZADO: Adicionados onSnapshot e doc aqui
 import { getFirestore, collection, query, where, getDocs, onSnapshot, doc } from 'firebase/firestore'; 
 
 const firebaseConfig = {
@@ -33,26 +32,19 @@ export default function App() {
   const [loginError, setLoginError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
-  // Função do Parental Gate (Barreira para Responsáveis)
   const verificarAcessoResponsavel = (): boolean => {
     const num1 = Math.floor(Math.random() * 9) + 1;
     const num2 = Math.floor(Math.random() * 9) + 1;
     const resultadoCorreto = num1 + num2;
 
-    const resposta = prompt(
-      `ÁREA RESTRITA PARA RESPONSÁVEIS\n\nPara prosseguir, resolva a conta:\nQuanto é ${num1} + ${num2}?`
-    );
+    const resposta = prompt(`ÁREA RESTRITA\nQuanto é ${num1} + ${num2}?`);
 
-    if (parseInt(resposta || '') === resultadoCorreto) {
-      return true;
-    }
-
-    alert("Acesso negado. Apenas pais ou terapeutas podem acessar as configurações.");
+    if (parseInt(resposta || '') === resultadoCorreto) return true;
+    alert("Acesso negado.");
     return false;
   };
 
   const carregarCartoesDoBanco = async (pacienteId: string) => {
-    console.log("Buscando cartões para o ID:", pacienteId);
     try {
       const cartoesRef = collection(db, 'cartoes_customizados');
       const q = query(cartoesRef, where('paciente_id', '==', pacienteId));
@@ -61,21 +53,16 @@ export default function App() {
       const cartoesDoFirebase: PecsCardType[] = [];
       querySnapshot.forEach((doc) => {
         const data = doc.data();
-        cartoesDoFirebase.push({ 
-          id: doc.id, 
-          label: data.label || 'Sem nome',
-          ...data 
-        } as PecsCardType);
+        cartoesDoFirebase.push({ id: doc.id, label: data.label || 'Sem nome', ...data } as PecsCardType);
       });
       
-      console.log("Cartões encontrados:", cartoesDoFirebase.length);
       setCards([...INITIAL_CARDS, ...cartoesDoFirebase]);
     } catch (error) {
       console.error("Erro ao buscar cartões:", error);
     }
   };
 
-  // Efeito original de carregamento
+  // Carregamento inicial do localStorage
   useEffect(() => {
     const savedConfig = localStorage.getItem('paciente_conectado');
     if (savedConfig) {
@@ -83,28 +70,23 @@ export default function App() {
         const parsed = JSON.parse(savedConfig);
         setPatientConfig(parsed);
         setTela('pecs');
-        carregarCartoesDoBanco(parsed.id); 
+        carregarCartoesDoBanco(parsed.id);
       } catch (e) {
         localStorage.removeItem('paciente_conectado');
       }
     }
   }, []);
 
-  // NOVO EFEITO: Monitor de exclusão em tempo real
+  // Monitor de exclusão em tempo real
   useEffect(() => {
     if (!patientConfig?.id) return;
-
-    // Monitora o documento do paciente
     const docRef = doc(db, 'pacientes', patientConfig.id);
     const unsubscribe = onSnapshot(docRef, (docSnapshot) => {
-      // Se o documento sumir do banco, desloga imediatamente
       if (!docSnapshot.exists()) {
-        alert("Sua conta foi removida pelo terapeuta. Você será desconectado.");
         localStorage.removeItem('paciente_conectado');
         window.location.reload(); 
       }
     });
-
     return () => unsubscribe();
   }, [patientConfig]);
 
@@ -114,13 +96,14 @@ export default function App() {
     setIsLoading(true);
 
     try {
+      const emailFormatado = loginEmail.toLowerCase().trim();
       const pacientesRef = collection(db, 'pacientes');
-      const q = query(pacientesRef, where('email', '==', loginEmail.toLowerCase().trim()));
+      
+      const q = query(pacientesRef, where('email', '==', emailFormatado));
       const querySnapshot = await getDocs(q);
 
       if (querySnapshot.empty) {
-        setLoginError('E-mail não cadastrado.');
-        setIsLoading(false);
+        setLoginError('Paciente não encontrado. Verifique se o rastreamento entre sites está ativo.');
         return;
       }
 
@@ -129,7 +112,6 @@ export default function App() {
 
       if (dados.senha !== loginPassword) {
         setLoginError('Senha incorreta.');
-        setIsLoading(false);
         return;
       }
 
@@ -137,12 +119,11 @@ export default function App() {
       localStorage.setItem('paciente_conectado', JSON.stringify(newConfig));
       
       setPatientConfig(newConfig);
-      carregarCartoesDoBanco(docPaciente.id); 
+      await carregarCartoesDoBanco(docPaciente.id); 
       setTela('pecs');
       
     } catch (err) {
-      console.error("Erro no login:", err);
-      setLoginError('Erro ao conectar ao banco de dados.');
+      setLoginError('Erro de conexão. Verifique sua rede ou configurações de privacidade.');
     } finally {
       setIsLoading(false);
     }
