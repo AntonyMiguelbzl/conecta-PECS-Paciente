@@ -1,14 +1,9 @@
 import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
-  appId: 'com.pecs.meuapp',
-  appName: 'ConectaPecs',
-  webDir: 'dist',
-  server:{
-    androidScheme: 'http',
-    hostname: 'localhost',
-    allowNavigation: ['192.168.0.3:3000']
-  }
+  appId: 'com.conectaPecs.com',
+  appName: 'Conecta_Pecs',
+  webDir: 'dist'
 };
 
 export default config;
