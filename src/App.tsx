@@ -77,9 +77,11 @@ export default function App() {
     }
   }, []);
 
-  // Monitor de exclusão em tempo real
+  // Monitor de exclusão em tempo real (ignora se for a conta de demonstração)
   useEffect(() => {
     if (!patientConfig?.id) return;
+    if (patientConfig.id === 'antony_demo_id') return;
+
     const docRef = doc(db, 'pacientes', patientConfig.id);
     const unsubscribe = onSnapshot(docRef, (docSnapshot) => {
       if (!docSnapshot.exists()) {

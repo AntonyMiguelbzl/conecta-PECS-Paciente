@@ -95,29 +95,53 @@ export default function PecsBoard({
   };
 
   const handleSidebarClick = (target: string) => {
+    // Trava de 400ms para evitar spam de cliques na barra lateral e bug na voz
     if (verificarBloqueioSpam(400)) return;
+
     if (target === 'home') { setHistoryStack(['home']); return; }
+    
     if (categorySentenceHelpers[target]) {
-      const helper = categorySentenceHelpers[target];
-      const helperCard: PecsCardType = { id: `helper-${target}`, label: helper.label, icon: helper.icon, type: 'item', color: helper.color, bgColor: helper.bgColor, borderColor: helper.borderColor };
-      setSentence((prev) => prev.some((item) => item.id === helperCard.id) ? prev : [...prev, helperCard]);
-      speakText(helper.voiceText);
+      if (sentence.length < 10) {
+        const helper = categorySentenceHelpers[target];
+        const helperId = `helper-${target}`;
+        const helperCard: PecsCardType = { id: helperId, label: helper.label, icon: helper.icon, type: 'item', color: helper.color, bgColor: helper.bgColor, borderColor: helper.borderColor };
+        
+        setSentence((prev) => {
+          // Se já existe na frase, não faz nada e não repete a voz
+          if (prev.some((item) => item.id === helperId)) return prev;
+          speakText(helper.voiceText);
+          return [...prev, helperCard];
+        });
+      }
     }
     setHistoryStack((prev) => prev[prev.length - 1] === target ? prev : [...prev, target]);
   };
 
   const handleCardClick = (card: PecsCardType) => {
     if (verificarBloqueioSpam(400)) return;
+
+    // TRAVA DE SEGURANÇA GLOBAL: Bloqueia qualquer tentativa se já tiver 10 itens
+    if (sentence.length >= 10) return;
+
     if (card.type === 'category') {
       if (card.target && categorySentenceHelpers[card.target]) {
         const helper = categorySentenceHelpers[card.target];
-        setSentence((prev) => [...prev, { id: `helper-${card.target}`, label: helper.label, icon: helper.icon, type: 'item', color: helper.color, bgColor: helper.bgColor, borderColor: helper.borderColor }]);
-        speakText(helper.voiceText);
+        const helperId = `helper-${card.target}`;
+        
+        setSentence((prev) => {
+          // Se já tem o helper na frase, não adiciona e nem repete o áudio
+          if (prev.some((item) => item.id === helperId)) return prev;
+          
+          speakText(helper.voiceText);
+          return [...prev, { id: helperId, label: helper.label, icon: helper.icon, type: 'item', color: helper.color, bgColor: helper.bgColor, borderColor: helper.borderColor }];
+        });
       }
       if (card.target) setHistoryStack((prev) => [...prev, card.target!]);
     } else {
-      setSentence((prev) => [...prev, { ...card, color: card.color || 'text-slate-700', bgColor: card.bgColor || 'bg-white', borderColor: card.borderColor || 'border-slate-200' }]);
-      speakText(card.label);
+      if (sentence.length < 10) {
+        setSentence((prev) => [...prev, { ...card, color: card.color || 'text-slate-700', bgColor: card.bgColor || 'bg-white', borderColor: card.borderColor || 'border-slate-200' }]);
+        speakText(card.label);
+      }
     }
   };
 
