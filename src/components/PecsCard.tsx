@@ -1,3 +1,4 @@
+import React, { useState } from 'react';
 import { motion } from 'motion/react';
 import { PecsCardType } from '../types';
 import { PECSIcon } from '../icons';
@@ -10,6 +11,7 @@ interface PecsCardProps {
 }
 
 export default function PecsCard({ card, onClick, onDeleteCustom }: PecsCardProps) {
+  const [estaBloqueado, setEstaBloqueado] = useState(false);
   const isCategory = card.type === 'category';
 
   const imageUrl = card.image && card.image.trim() !== "" ? card.image : null;
@@ -21,13 +23,27 @@ export default function PecsCard({ card, onClick, onDeleteCustom }: PecsCardProp
   const borderClass = card.borderColor || 'border-slate-200';
   const textClass = card.color || 'text-slate-700';
 
+  const handleClickLocal = () => {
+    if (estaBloqueado) return;
+
+    // Ativa o bloqueio por 400ms para impedir múltiplos cliques rápidos e bugs de voz
+    setEstaBloqueado(true);
+    onClick(card);
+
+    setTimeout(() => {
+      setEstaBloqueado(false);
+    }, );
+  };
+
   return (
     <motion.div
       role="button"
-      onClick={() => onClick(card)}
-      whileHover={{ y: -3, scale: 1.02 }}
-      whileTap={{ scale: 0.96 }}
-      className={`relative w-full h-full min-h-[110px] sm:min-h-[140px] rounded-2xl sm:rounded-3xl border-2 sm:border-4 ${borderClass} ${bgClass} p-2 sm:p-4 flex flex-col items-center justify-between text-center cursor-pointer group`}
+      onClick={handleClickLocal}
+      whileHover={{ y: estaBloqueado ? 0 : -3, scale: estaBloqueado ? 1 : 1.02 }}
+      whileTap={{ scale: estaBloqueado ? 1 : 0.96 }}
+      className={`relative w-full h-full min-h-[110px] sm:min-h-[140px] rounded-2xl sm:rounded-3xl border-2 sm:border-4 ${borderClass} ${bgClass} p-2 sm:p-4 flex flex-col items-center justify-between text-center cursor-pointer group transition-opacity ${
+        estaBloqueado ? 'opacity-60 pointer-events-none' : ''
+      }`}
     >
       {isCategory && <div className="absolute top-0 inset-x-0 h-1.5 sm:h-2 bg-blue-500 rounded-t-[10px] sm:rounded-t-[20px]" />}
 
