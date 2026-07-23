@@ -32,7 +32,7 @@ export default function PecsCard({ card, onClick, onDeleteCustom }: PecsCardProp
 
     setTimeout(() => {
       setEstaBloqueado(false);
-    }, );
+    }, 400);
   };
 
   return (
