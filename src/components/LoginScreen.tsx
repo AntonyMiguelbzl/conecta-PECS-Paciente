@@ -1,6 +1,8 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { motion } from 'motion/react';
 import * as Lucide from 'lucide-react';
+import mobileImage from '../assets/Mobile.jpeg';
+import tabletImage from '../assets/Tablet.jpeg';
 
 export interface LoginScreenProps {
   loginEmail: string;
@@ -23,19 +25,43 @@ const LoginScreen: React.FC<LoginScreenProps> = ({
   isLoading = false,
   onGuestLogin
 }) => {
+  const [currentImage, setCurrentImage] = useState<string>(() => {
+    if (typeof window === 'undefined') return tabletImage;
+    return window.innerWidth < 768 ? mobileImage : tabletImage;
+  });
+
+  useEffect(() => {
+    const updateImage = () => {
+      setCurrentImage(window.innerWidth < 768 ? mobileImage : tabletImage);
+    };
+
+    updateImage();
+    window.addEventListener('resize', updateImage);
+
+    return () => window.removeEventListener('resize', updateImage);
+  }, []);
+
   return (
     <motion.div
       key="login-screen"
       initial={{ opacity: 0, y: 15 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, scale: 0.95 }}
-      className="flex-1 flex flex-col justify-center items-center bg-slate-950 p-4 relative overflow-y-auto min-h-screen w-full py-8 sm:py-12 [@media(max-height:620px)_and_(orientation:landscape)]:py-4"
+      className="relative flex-1 flex flex-col justify-center items-center p-4 overflow-y-auto min-h-screen w-full py-8 sm:py-12 [@media(max-height:620px)_and_(orientation:landscape)]:py-4"
+      style={{
+        backgroundImage: `url(${currentImage})`,
+        backgroundSize: 'cover',
+        backgroundPosition: 'center 45%',
+        backgroundRepeat: 'no-repeat',
+      }}
     >
+      <div className="absolute inset-0 bg-slate-950/55" />
+
       {/* Background Orbs Responsivos */}
       <div className="absolute top-10 left-1/2 -translate-x-1/2 sm:left-10 sm:translate-x-0 w-64 h-64 sm:w-96 sm:h-96 bg-blue-600/15 rounded-full blur-3xl pointer-events-none animate-pulse duration-3000" />
       <div className="absolute bottom-10 right-1/2 translate-x-1/2 sm:right-10 sm:translate-x-0 w-64 h-64 sm:w-96 sm:h-96 bg-purple-600/10 rounded-full blur-3xl pointer-events-none animate-pulse duration-3000" />
 
-      <div className="bg-slate-900/80 backdrop-blur-md border border-slate-800 rounded-2xl sm:rounded-3xl w-full max-w-sm p-5 sm:p-8 [@media(max-height:620px)_and_(orientation:landscape)]:p-5 shadow-2xl relative z-10 flex flex-col items-center my-auto">
+      <div className="relative z-10 bg-slate-900/80 backdrop-blur-md border border-slate-800 rounded-2xl sm:rounded-3xl w-full max-w-sm p-5 sm:p-8 [@media(max-height:620px)_and_(orientation:landscape)]:p-5 shadow-2xl flex flex-col items-center my-auto">
         
         {/* Cabeçalho do App - Só fica em linha se for celular deitado */}
         <div className="flex flex-col [@media(max-height:620px)_and_(orientation:landscape)]:flex-row items-center gap-2.5 sm:gap-3 [@media(max-height:620px)_and_(orientation:landscape)]:gap-4 mb-5 sm:mb-6 [@media(max-height:620px)_and_(orientation:landscape)]:mb-4 select-none text-center [@media(max-height:620px)_and_(orientation:landscape)]:text-left">

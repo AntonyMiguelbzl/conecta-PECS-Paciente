@@ -1,4 +1,4 @@
-import { motion } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
 import * as Lucide from "lucide-react";
 import { PecsCardType } from "../types";
 import { PECSIcon } from "../icons";
@@ -74,16 +74,28 @@ export default function SentenceBar({
           </div>
         ) : (
           <div className="flex items-center gap-1.5 sm:gap-2.5 py-1 min-w-max">
-            {sentence.map((card, idx) => (
+            <AnimatePresence>
+              {sentence.map((card, idx) => (
                 <motion.div
                   key={`${card.id}-${idx}`}
+                  layout
                   initial={{ opacity: 0, scale: 0.8, x: 20 }}
                   animate={{ opacity: 1, scale: 1, x: 0 }}
+                  exit={{ opacity: 0, scale: 0.7, x: -20 }}
                   whileHover={{ scale: 1.05 }}
-                  className="group relative flex flex-col items-center justify-center border-2 border-blue-400 bg-blue-50 rounded-lg sm:rounded-xl p-1 sm:p-1.5 min-w-[56px] sm:min-w-[76px] h-12 sm:h-16 shadow-sm cursor-pointer"
-                  onClick={() => onRemoveIndex(idx)}
-                  title="Clique para remover"
+                  transition={{ duration: 0.22, ease: "easeOut" }}
+                  className="group relative flex flex-col items-center justify-center border-2 border-blue-400 bg-blue-50 rounded-lg sm:rounded-xl p-1 sm:p-1.5 min-w-[56px] sm:min-w-[76px] h-12 sm:h-16 shadow-sm"
                 >
+                  <button
+                    type="button"
+                    onClick={() => onRemoveIndex(idx)}
+                    className="absolute -top-1 -right-1 flex items-center justify-center w-5 h-5 sm:w-5 sm:h-5 rounded-full bg-red-500 text-white shadow-sm transition-opacity opacity-100 hover:opacity-90"
+                    title="Remover cartão"
+                    aria-label={`Remover ${card.label}`}
+                  >
+                    <Lucide.X className="w-3 h-3 stroke-[2.5]" />
+                  </button>
+
                   <div
                     className={`${card.color || "text-slate-800"} flex items-center justify-center`}
                   >
@@ -106,12 +118,9 @@ export default function SentenceBar({
                   <span className="text-[9px] sm:text-[11px] font-bold text-slate-800 lowercase leading-none mt-0.5 sm:mt-1 text-center block w-full truncate px-1">
                     {card.label}
                   </span>
-
-                  <div className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity shadow-sm">
-                    <Lucide.X className="w-2.5 h-2.5 stroke-[3]" />
-                  </div>
                 </motion.div>
             ))}
+            </AnimatePresence>
           </div>
         )}
       </div>
@@ -121,7 +130,7 @@ export default function SentenceBar({
         <button
           onClick={onSpeak}
           disabled={sentence.length === 0 || isSpeaking}
-          className={`flex flex-col items-center justify-center p-1.5 sm:p-2.5 rounded-xl sm:rounded-2xl bg-white border-2 transition-all shadow-sm ${
+          className={`flex flex-col items-center justify-center p-1.5 sm:p-2.5 rounded-xl sm:rounded-2xl bg-white border-2 min-w-[54px] sm:min-w-[64px] transition-all shadow-sm ${
             sentence.length > 0 && !isSpeaking
               ? "border-slate-200 text-blue-600 hover:bg-blue-50 hover:border-blue-500 hover:scale-105 active:scale-95 cursor-pointer"
               : "border-slate-100 text-slate-300 cursor-not-allowed opacity-50"

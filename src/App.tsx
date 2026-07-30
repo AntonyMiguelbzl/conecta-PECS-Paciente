@@ -105,7 +105,7 @@ export default function App() {
       const querySnapshot = await getDocs(q);
 
       if (querySnapshot.empty) {
-        setLoginError('Paciente não encontrado. Verifique se o rastreamento entre sites está ativo.');
+        setLoginError('Paciente não encontrado. Verifique se o seu Email/Senha estão corretos');
         return;
       }
 

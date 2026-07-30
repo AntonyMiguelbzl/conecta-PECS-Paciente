@@ -40,7 +40,7 @@ export const PecsIconMap: Record<string, ComponentType<{ className?: string; siz
   plus: Lucide.Plus,
   volume2: Lucide.Volume2,
   settings: Lucide.Settings,
-  flower: Lucide.Flower,
+  flower: Lucide.Volleyball,
   sun: Lucide.Sun,
   cloud: Lucide.Cloud,
   brush: Lucide.Brush,

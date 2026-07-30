@@ -32,13 +32,16 @@ export default function PecsBoard({
   const ultimoCliqueRef = useRef<number>(0);
   const boasVindasFaladas = useRef<boolean>(false);
 
+  const startSpeech = () => setIsSpeaking(true);
+  const stopSpeech = () => setIsSpeaking(false);
+
   const currentCategory = historyStack[historyStack.length - 1] || 'home';
 
   useEffect(() => {
     const nomeParaBoasVindas = profile?.name || username;
     if (nomeParaBoasVindas && !boasVindasFaladas.current) {
       const timer = setTimeout(() => {
-        speakText(`Bem-vindo, ${nomeParaBoasVindas}!`);
+        speakText(`Bem-vindo, ${nomeParaBoasVindas}!`, startSpeech, stopSpeech, { interrupt: true });
         boasVindasFaladas.current = true;
       }, 800);
       return () => clearTimeout(timer);
@@ -62,9 +65,9 @@ export default function PecsBoard({
   const categorySentenceHelpers: Record<string, { label: string; voiceText: string; icon: string; color: string; bgColor: string; borderColor: string }> = {
     comer: { label: 'eu quero comer', voiceText: 'eu quero comer', icon: 'utensils', color: 'text-amber-600', bgColor: 'bg-amber-50', borderColor: 'border-amber-200' },
     beber: { label: 'eu quero beber', voiceText: 'eu quero beber', icon: 'glassWater', color: 'text-cyan-600', bgColor: 'bg-cyan-50', borderColor: 'border-cyan-200' },
-    brincar: { label: 'eu quero brincar', voiceText: 'eu quero brincar de', icon: 'gamepad', color: 'text-sky-600', bgColor: 'bg-sky-50', borderColor: 'border-sky-200' },
-    ir: { label: 'eu quero ir', voiceText: 'eu quero ir para', icon: 'footprints', color: 'text-purple-600', bgColor: 'bg-purple-50', borderColor: 'border-purple-200' },
-    sentimentos: { label: 'eu me sinto', voiceText: 'eu estou me sentindo', icon: 'smile', color: 'text-rose-600', bgColor: 'bg-rose-50', borderColor: 'border-rose-200' },
+    brincar: { label: 'eu quero brincar de', voiceText: 'eu quero brincar de', icon: 'gamepad', color: 'text-sky-600', bgColor: 'bg-sky-50', borderColor: 'border-sky-200' },
+    ir: { label: 'eu quero ir para', voiceText: 'eu quero ir para', icon: 'footprints', color: 'text-purple-600', bgColor: 'bg-purple-50', borderColor: 'border-purple-200' },
+    sentimentos: { label: 'eu estou me sentindo', voiceText: 'eu estou me sentindo', icon: 'smile', color: 'text-rose-600', bgColor: 'bg-rose-50', borderColor: 'border-rose-200' },
     querer: { label: 'eu quero', voiceText: 'eu quero', icon: 'hand', color: 'text-blue-600', bgColor: 'bg-blue-50', borderColor: 'border-blue-200' },
     familia: { label: 'minha família', voiceText: 'minha família', icon: 'users', color: 'text-emerald-600', bgColor: 'bg-emerald-50', borderColor: 'border-emerald-200' },
     sobre: { label: 'sobre mim', voiceText: 'conversa sobre mim', icon: 'user', color: 'text-indigo-600', bgColor: 'bg-indigo-50', borderColor: 'border-indigo-200' }
@@ -109,7 +112,7 @@ export default function PecsBoard({
         setSentence((prev) => {
           // Se já existe na frase, não faz nada e não repete a voz
           if (prev.some((item) => item.id === helperId)) return prev;
-          speakText(helper.voiceText);
+          speakText(helper.voiceText, startSpeech, stopSpeech);
           return [...prev, helperCard];
         });
       }
@@ -132,7 +135,7 @@ export default function PecsBoard({
           // Se já tem o helper na frase, não adiciona e nem repete o áudio
           if (prev.some((item) => item.id === helperId)) return prev;
           
-          speakText(helper.voiceText);
+          speakText(helper.voiceText, startSpeech, stopSpeech);
           return [...prev, { id: helperId, label: helper.label, icon: helper.icon, type: 'item', color: helper.color, bgColor: helper.bgColor, borderColor: helper.borderColor }];
         });
       }
@@ -140,7 +143,7 @@ export default function PecsBoard({
     } else {
       if (sentence.length < 10) {
         setSentence((prev) => [...prev, { ...card, color: card.color || 'text-slate-700', bgColor: card.bgColor || 'bg-white', borderColor: card.borderColor || 'border-slate-200' }]);
-        speakText(card.label);
+        speakText(card.label, startSpeech, stopSpeech);
       }
     }
   };
@@ -153,10 +156,8 @@ export default function PecsBoard({
 
   const handleSpeakSentence = () => {
     if (sentence.length === 0 || isSpeaking) return;
-    setIsSpeaking(true);
     const textoCompleto = sentence.map(s => s.label).join(' ');
-    speakText(textoCompleto);
-    setTimeout(() => setIsSpeaking(false), Math.max(1200, (textoCompleto.length * 85) + 600));
+    speakText(textoCompleto, startSpeech, stopSpeech, { interrupt: true });
   };
 
   const handleOpenPanelSecure = () => {

@@ -1,75 +1,127 @@
-import { TextToSpeech } from '@capacitor-community/text-to-speech';
+﻿import { TextToSpeech } from '@capacitor-community/text-to-speech';
 import { Capacitor } from '@capacitor/core';
+
+type SpeakOptions = {
+  interrupt?: boolean;
+};
+
+let speechInProgress = false;
+let queuedSpeech: {
+  text: string;
+  onStart?: () => void;
+  onEnd?: () => void;
+  options: SpeakOptions;
+} | null = null;
+
+function completeSpeech() {
+  speechInProgress = false;
+  if (queuedSpeech) {
+    const next = queuedSpeech;
+    queuedSpeech = null;
+    speakText(next.text, next.onStart, next.onEnd, next.options);
+  }
+}
 
 /**
  * Professional client-side & native Speech Synthesis utility.
  * Specifically tuned for Portuguese voices (Android/iOS/Web).
  */
-export function speakText(text: string, onStart?: () => void, onEnd?: () => void) {
+export function speakText(
+  text: string,
+  onStart?: () => void,
+  onEnd?: () => void,
+  options: SpeakOptions = { interrupt: true }
+) {
   if (!text) return;
 
-  // 1. Se estiver rodando como APP NATIVO (Android ou iOS)
-  if (Capacitor.isNativePlatform()) {
-    const speakNative = async () => {
+  const request = {
+    text,
+    onStart,
+    onEnd,
+    options: { interrupt: options.interrupt ?? true },
+  };
+
+  if (speechInProgress) {
+    queuedSpeech = request;
+
+    if (request.options.interrupt) {
+      if (Capacitor.isNativePlatform()) {
+        TextToSpeech.stop().catch(() => undefined);
+      } else if ('speechSynthesis' in window) {
+        window.speechSynthesis.cancel();
+      }
+    }
+
+    return;
+  }
+
+  const speakNow = async () => {
+    speechInProgress = true;
+
+    if (Capacitor.isNativePlatform()) {
       try {
-        // Dispara o callback de início (se houver) antes de começar a falar
         if (onStart) onStart();
 
-        // Para qualquer fala que esteja tocando antes
-        await TextToSpeech.stop();
-
-        // Executa a fala nativa usando o motor do Android/iOS
         await TextToSpeech.speak({
-          text: text,
+          text: request.text,
           lang: 'pt-BR',
-          rate: 0.9,      // Mantém o ritmo ligeiramente mais lento (ideal para PECS)
+          rate: 0.9,
           pitch: 1.0,
           volume: 1.0,
           category: 'ambient',
         });
-
-        // Dispara o callback de fim assim que a síntese nativa concluir
-        if (onEnd) onEnd();
       } catch (error) {
-        console.error("Erro ao reproduzir voz nativa:", error);
-        // Garante que o fluxo não trave chamando o onEnd mesmo em caso de erro
+        console.error('Erro ao reproduzir voz nativa:', error);
+      } finally {
         if (onEnd) onEnd();
+        completeSpeech();
       }
+      return;
+    }
+
+    if (!('speechSynthesis' in window)) {
+      console.warn('Speech synthesis is not supported in this browser.');
+      completeSpeech();
+      return;
+    }
+
+    const utterance = new SpeechSynthesisUtterance(request.text);
+    const voices = window.speechSynthesis.getVoices();
+    const ptVoice = voices.find(
+      (v) => v.lang.startsWith('pt-BR') || v.lang.startsWith('pt')
+    );
+
+    if (ptVoice) {
+      utterance.voice = ptVoice;
+    }
+
+    utterance.lang = 'pt-BR';
+    utterance.rate = 0.9;
+    utterance.pitch = 1.0;
+
+    utterance.onstart = () => {
+      if (onStart) onStart();
     };
 
-    speakNative();
+    utterance.onend = () => {
+      if (onEnd) onEnd();
+      completeSpeech();
+    };
+
+    utterance.onerror = () => {
+      if (onEnd) onEnd();
+      completeSpeech();
+    };
+
+    window.speechSynthesis.speak(utterance);
+  };
+
+  if (!request.options.interrupt && speechInProgress) {
+    queuedSpeech = request;
     return;
   }
 
-  // 2. Fallback para WEB (Navegador tradicional/PWA)
-  if (!('speechSynthesis' in window)) {
-    console.warn('Speech synthesis is not supported in this browser.');
-    return;
-  }
-
-  // Cancel any ongoing speech first
-  window.speechSynthesis.cancel();
-
-  const utterance = new SpeechSynthesisUtterance(text);
-  
-  // Try to locate a Brazilian Portuguese voice
-  const voices = window.speechSynthesis.getVoices();
-  const ptVoice = voices.find(
-    (v) => v.lang.startsWith('pt-BR') || v.lang.startsWith('pt')
-  );
-
-  if (ptVoice) {
-    utterance.voice = ptVoice;
-  }
-
-  utterance.lang = 'pt-BR';
-  utterance.rate = 0.9; // Slightly slower, perfect for PECS users
-  utterance.pitch = 1.0;
-
-  if (onStart) utterance.onstart = onStart;
-  if (onEnd) utterance.onend = onEnd;
-
-  window.speechSynthesis.speak(utterance);
+  speakNow();
 }
 
 // Pre-load voices if supported (apenas se estiver no ambiente web)

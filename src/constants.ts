@@ -370,16 +370,6 @@ export const INITIAL_CARDS: PecsCardType[] = [
     color: 'text-sky-600',
   },
   {
-    id: 'boneca',
-    label: 'boneca',
-    icon: 'baby',
-    type: 'item',
-    target: 'brincar',
-    bgColor: 'bg-white',
-    borderColor: 'border-sky-100',
-    color: 'text-pink-400',
-  },
-  {
     id: 'carrinho',
     label: 'carrinho',
     icon: 'car',
