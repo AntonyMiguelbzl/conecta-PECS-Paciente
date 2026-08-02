@@ -132,16 +132,6 @@ export const INITIAL_CARDS: PecsCardType[] = [
 
   // --- SOBRE MIM ---
   {
-    id: 'meu-nome',
-    label: 'meu nome é',
-    icon: 'contact',
-    type: 'item',
-    target: 'sobre',
-    bgColor: 'bg-white',
-    borderColor: 'border-indigo-100',
-    color: 'text-indigo-600',
-  },
-  {
     id: 'eu-sou',
     label: 'eu sou',
     icon: 'userCheck',
