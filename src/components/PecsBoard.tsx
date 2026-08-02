@@ -70,7 +70,7 @@ export default function PecsBoard({
     sentimentos: { label: 'eu estou me sentindo', voiceText: 'eu estou me sentindo', icon: 'smile', color: 'text-rose-600', bgColor: 'bg-rose-50', borderColor: 'border-rose-200' },
     querer: { label: 'eu quero', voiceText: 'eu quero', icon: 'hand', color: 'text-blue-600', bgColor: 'bg-blue-50', borderColor: 'border-blue-200' },
     familia: { label: 'minha família', voiceText: 'minha família', icon: 'users', color: 'text-emerald-600', bgColor: 'bg-emerald-50', borderColor: 'border-emerald-200' },
-    sobre: { label: 'sobre mim', voiceText: 'conversa sobre mim', icon: 'user', color: 'text-indigo-600', bgColor: 'bg-indigo-50', borderColor: 'border-indigo-200' }
+    sobre: { label: 'Conversa sobre mim', voiceText: 'conversa sobre mim', icon: 'user', color: 'text-indigo-600', bgColor: 'bg-indigo-50', borderColor: 'border-indigo-200' }
   };
 
   useEffect(() => {

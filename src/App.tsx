@@ -31,6 +31,13 @@ export default function App() {
   const [loginPassword, setLoginPassword] = useState('');
   const [loginError, setLoginError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [boardSessionKey, setBoardSessionKey] = useState(0);
+
+  const resetBoardSession = () => {
+    setCards(INITIAL_CARDS);
+    setSpokenHistory([]);
+    setBoardSessionKey((prev) => prev + 1);
+  };
 
   const verificarAcessoResponsavel = (): boolean => {
     const num1 = Math.floor(Math.random() * 9) + 1;
@@ -70,10 +77,16 @@ export default function App() {
         const parsed = JSON.parse(savedConfig);
         setPatientConfig(parsed);
         setTela('pecs');
-        carregarCartoesDoBanco(parsed.id);
+        if (parsed.id === 'antony_demo_id') {
+          resetBoardSession();
+        } else {
+          carregarCartoesDoBanco(parsed.id);
+        }
       } catch (e) {
         localStorage.removeItem('paciente_conectado');
       }
+    } else {
+      resetBoardSession();
     }
   }, []);
 
@@ -119,9 +132,10 @@ export default function App() {
 
       const newConfig = { name: dados.nome || 'Estudante', id: docPaciente.id };
       localStorage.setItem('paciente_conectado', JSON.stringify(newConfig));
-      
+
+      resetBoardSession();
       setPatientConfig(newConfig);
-      await carregarCartoesDoBanco(docPaciente.id); 
+      await carregarCartoesDoBanco(docPaciente.id);
       setTela('pecs');
       
     } catch (err) {
@@ -134,6 +148,7 @@ export default function App() {
   const handleGuestLogin = () => {
     const demoConfig = { name: 'Estudante Demo', id: 'antony_demo_id' };
     localStorage.setItem('paciente_conectado', JSON.stringify(demoConfig));
+    resetBoardSession();
     setPatientConfig(demoConfig);
     setTela('pecs');
   };
@@ -155,7 +170,7 @@ export default function App() {
           />
         ) : (
           <PecsBoard
-            key="pecs"
+            key={`pecs-${boardSessionKey}-${patientConfig?.id ?? 'guest'}`}
             cards={cards}
             setCards={setCards}
             profile={{ name: patientConfig?.name || '', age: '', city: '', phone: '' }}
