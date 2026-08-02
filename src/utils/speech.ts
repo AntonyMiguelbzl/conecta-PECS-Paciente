@@ -12,14 +12,51 @@ let queuedSpeech: {
   onEnd?: () => void;
   options: SpeakOptions;
 } | null = null;
+let speechTimeoutHandle: ReturnType<typeof setTimeout> | undefined;
+let activeSpeechToken = 0;
+const completedSpeechTokens = new Set<number>();
 
-function completeSpeech() {
+function clearSpeechTimeout() {
+  if (speechTimeoutHandle) {
+    clearTimeout(speechTimeoutHandle);
+    speechTimeoutHandle = undefined;
+  }
+}
+
+function completeSpeech(token?: number, onEnd?: () => void) {
+  clearSpeechTimeout();
+
+  if (token !== undefined) {
+    if (completedSpeechTokens.has(token)) {
+      return;
+    }
+    completedSpeechTokens.add(token);
+  }
+
+  if (token !== undefined && token !== activeSpeechToken) {
+    return;
+  }
+
   speechInProgress = false;
+
+  if (onEnd) {
+    onEnd();
+  }
+
   if (queuedSpeech) {
     const next = queuedSpeech;
     queuedSpeech = null;
     speakText(next.text, next.onStart, next.onEnd, next.options);
   }
+}
+
+function scheduleSpeechFallback(text: string, token: number, onEnd?: () => void) {
+  clearSpeechTimeout();
+  const fallbackDelay = Math.max(1200, text.length * 70);
+  speechTimeoutHandle = globalThis.setTimeout(() => {
+    speechTimeoutHandle = undefined;
+    completeSpeech(token, onEnd);
+  }, fallbackDelay);
 }
 
 /**
@@ -56,11 +93,14 @@ export function speakText(
   }
 
   const speakNow = async () => {
+    activeSpeechToken += 1;
+    const token = activeSpeechToken;
     speechInProgress = true;
 
     if (Capacitor.isNativePlatform()) {
       try {
         if (onStart) onStart();
+        scheduleSpeechFallback(request.text, token, onEnd);
 
         await TextToSpeech.speak({
           text: request.text,
@@ -73,8 +113,7 @@ export function speakText(
       } catch (error) {
         console.error('Erro ao reproduzir voz nativa:', error);
       } finally {
-        if (onEnd) onEnd();
-        completeSpeech();
+        completeSpeech(token, onEnd);
       }
       return;
     }
@@ -101,16 +140,15 @@ export function speakText(
 
     utterance.onstart = () => {
       if (onStart) onStart();
+      scheduleSpeechFallback(request.text, token, onEnd);
     };
 
     utterance.onend = () => {
-      if (onEnd) onEnd();
-      completeSpeech();
+      completeSpeech(token, onEnd);
     };
 
     utterance.onerror = () => {
-      if (onEnd) onEnd();
-      completeSpeech();
+      completeSpeech(token, onEnd);
     };
 
     window.speechSynthesis.speak(utterance);
